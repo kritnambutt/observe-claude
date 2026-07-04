@@ -1,0 +1,35 @@
+name: release
+
+# Push a semver tag (e.g. `git tag v0.1.0 && git push origin v0.1.0`) to cut a
+# release: cross-platform binaries on GitHub Releases + Homebrew cask + Scoop
+# manifest, all via GoReleaser.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          # A classic PAT with `repo` scope (or a fine-grained token with
+          # contents:write on this repo AND the homebrew-tap / scoop-bucket
+          # repos). The default GITHUB_TOKEN cannot push to those other repos.
+          # Store it as an Actions secret named GORELEASER_TOKEN.
+          GITHUB_TOKEN: ${{ secrets.GORELEASER_TOKEN }}

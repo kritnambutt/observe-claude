@@ -1,0 +1,65 @@
+# GoReleaser builds cross-platform binaries on a git tag and publishes them to
+# GitHub Releases, plus a Homebrew cask (macOS) and a Scoop manifest (Windows).
+# Validate locally with:  goreleaser check   and   goreleaser release --snapshot --clean
+version: 2
+
+project_name: observe-claude
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: observe-claude
+    main: ./cmd/observe-claude
+    binary: observe-claude
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, windows, linux]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w
+      - -X github.com/papikayo/observability-code/internal/cli.Version={{ .Version }}
+
+archives:
+  - id: default
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: "checksums.txt"
+
+# macOS — `brew install kritnambutt/tap/observe-claude`.
+# Requires a repo named `homebrew-tap` under the same owner (create it empty).
+homebrew_casks:
+  - repository:
+      owner: kritnambutt
+      name: homebrew-tap
+    homepage: "https://github.com/kritnambutt/observe-claude"
+    description: "Local observability for Claude Code sessions"
+
+# Windows — `scoop bucket add observe kritnambutt/scoop-bucket; scoop install observe-claude`.
+# Requires a repo named `scoop-bucket` under the same owner (create it empty).
+scoops:
+  - repository:
+      owner: kritnambutt
+      name: scoop-bucket
+    homepage: "https://github.com/kritnambutt/observe-claude"
+    description: "Local observability for Claude Code sessions"
+    license: MIT
+
+release:
+  github:
+    owner: kritnambutt
+    name: observe-claude
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"

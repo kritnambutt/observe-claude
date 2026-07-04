@@ -6,30 +6,62 @@ model and how many tokens were used per turn — captured via Claude Code
 hooks, modeled as OpenTelemetry traces, stored in SQLite, and browsed
 through a small built-in web UI (a much lighter-weight cousin of SigNoz).
 
+## Install
+
+The whole tool is one cross-platform binary, `observe-claude`.
+
+**macOS (Homebrew):**
+
+```sh
+brew install kritnambutt/tap/observe-claude
+```
+
+**Windows (Scoop):**
+
+```powershell
+scoop bucket add observe https://github.com/kritnambutt/scoop-bucket
+scoop install observe-claude
+```
+
+**Any OS (prebuilt binary):** download the archive for your platform from the
+[latest release](https://github.com/kritnambutt/observe-claude/releases) and
+put `observe-claude` on your `PATH`.
+
+**From source (needs Go):** `go build -o observe-claude ./cmd/observe-claude`
+
 ## Quick start
 
 ```sh
-go build ./...
-
-# Register the hook binary against Claude Code (choose one):
-scripts/install-hooks.sh --global          # observe every project on this machine
-scripts/install-hooks.sh --project [dir]   # observe only one project (defaults to $PWD)
-
-# Start a new Claude Code session anywhere, do some work, then:
-go run ./cmd/server
-# -> http://127.0.0.1:4790
+observe-claude init          # register the hook with Claude Code (all projects)
+# ...start or restart a Claude Code session and do some work...
+observe-claude serve --open  # browse your sessions (http://127.0.0.1:4790)
 ```
 
-`install-hooks.sh` only *appends* a new hook group to each event's array in
-`settings.json` — it never removes or overwrites hooks other tools (e.g.
-GitKraken CLI) already registered there. It backs up `settings.json` before
-writing.
+`observe-claude init` (use `--project [dir]` to scope to one project) only
+*appends* a hook group to each event's array in Claude Code's `settings.json`
+— it never removes or overwrites hooks other tools already registered there,
+and it backs `settings.json` up first. It also drops a stable copy of the
+binary in `~/.observability-code/bin/` and points the hook at that, so the
+registration keeps working across upgrades.
+
+<details>
+<summary>Subcommands</summary>
+
+| Command | What it does |
+|---|---|
+| `observe-claude init [--global \| --project [dir]]` | register the hook in Claude Code's `settings.json` (`--global` is the default) |
+| `observe-claude serve [--addr host:port] [--db path] [--open]` | run the web UI |
+| `observe-claude hook` | invoked by Claude Code per event; reads the payload on stdin (you don't run this) |
+| `observe-claude version` | print the version |
+
+</details>
 
 ## How it works
 
 Claude Code invokes a fresh, short-lived OS process for every hook event
 (`PreToolUse`, `PostToolUse`, `SessionStart`, ...), with no memory shared
-between invocations. `cmd/hook` is that process. Each invocation:
+between invocations. `observe-claude hook` (code in `internal/hookrun`) is
+that process. Each invocation:
 
 1. Parses the event JSON from stdin (`internal/hookevent`).
 2. Derives deterministic OTel trace/span IDs from Claude's `session_id` and
@@ -50,8 +82,14 @@ between invocations. `cmd/hook` is that process. Each invocation:
 6. A custom `sdktrace.SpanExporter` writes the finished span straight into
    the `spans` table — no collector, no OTLP network hop.
 
-`cmd/server` just reads that SQLite database back out and renders a session
-list + a per-session waterfall view (`internal/web`).
+`observe-claude serve` just reads that SQLite database back out and renders a
+session list + a per-session waterfall view (`internal/web`).
+
+The single binary has three jobs (`internal/cli` multiplexes them):
+`hook` (above), `serve` (the UI), and `init` (cross-platform registration into
+Claude Code's `settings.json`, the Go port of `scripts/install-hooks.sh`).
+`cmd/hook` and `cmd/server` remain as thin wrappers so existing scripts and
+`go run ./cmd/server` keep working.
 
 ### Token/model enrichment
 

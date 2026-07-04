@@ -1,0 +1,148 @@
+{{define "dashboard.html"}}
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Claude Code Usage — observability-code</title>
+  {{template "style"}}
+</head>
+<body>
+  <div class="dash-head">
+    <h1>Claude Code Usage</h1>
+    <div class="subtitle">refreshed {{.Now}} &middot; <a href="/sessions">all sessions &rarr;</a></div>
+  </div>
+
+  <div class="cards">
+    {{range .Cards}}
+    <div class="card{{if .Accent}} accent{{end}}">
+      <div class="card-k">{{.Label}}</div>
+      <div class="card-v">{{.Value}}</div>
+      <div class="card-s">{{.Sub}}</div>
+    </div>
+    {{end}}
+  </div>
+
+  <div class="panel">
+    <h2>API cost vs. flat subscription</h2>
+    <div class="subtitle">Metered API list pricing for the usage above is <strong>${{.Cost}}</strong>. If that work ran under a fixed Claude plan instead:</div>
+    <div class="compare">
+      <div class="plan">
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">${{.Pro}}<span>/mo</span></div>
+        <div class="plan-note">{{.ProSaving}}</div>
+      </div>
+      <div class="plan">
+        <div class="plan-name">Max 5&times;</div>
+        <div class="plan-price">${{.Max5}}<span>/mo</span></div>
+        <div class="plan-note">{{.Max5Saving}}</div>
+      </div>
+      <div class="plan">
+        <div class="plan-name">Max 20&times;</div>
+        <div class="plan-price">${{.Max}}<span>/mo</span></div>
+        <div class="plan-note">{{.MaxSaving}}</div>
+      </div>
+    </div>
+    <div class="disclaimer">A flat plan bundles many months / rate limits; comparison is illustrative, per the usage captured here.</div>
+  </div>
+
+  {{if .HasDays}}
+  <div class="panel">
+    <h2>Daily token usage</h2>
+    <div class="legend">
+      <span><i style="background:{{.ColInput}}"></i>Input</span>
+      <span><i style="background:{{.ColOutput}}"></i>Output</span>
+      <span><i style="background:{{.ColRead}}"></i>Cache read</span>
+      <span><i style="background:{{.ColWrite}}"></i>Cache creation</span>
+    </div>
+    <div class="chart-scroll">
+      <div class="bars">
+        {{range .Days}}
+        <div class="bar-col" title="{{.Total}} tokens">
+          <div class="bar-stack">
+            {{range .Segments}}<div class="seg" style="height:{{.HeightPct}}%; background:{{.Color}}"></div>{{end}}
+          </div>
+          <div class="bar-label">{{.Day}}</div>
+        </div>
+        {{end}}
+      </div>
+    </div>
+  </div>
+  {{end}}
+
+  <div class="grid2">
+    <div class="panel">
+      <h2>By model</h2>
+      {{if .Donut}}
+      <div class="donut-wrap">
+        <svg viewBox="0 0 100 100" class="donut">
+          {{range .Donut}}<path d="{{.Path}}" fill="{{.Color}}"></path>{{end}}
+        </svg>
+        <div class="legend col">
+          {{range .Models}}<span><i style="background:{{.Color}}"></i>{{.Model}} <span class="muted">{{printf "%.0f%%" .Pct}}</span></span>{{end}}
+        </div>
+      </div>
+      {{else}}
+      <p class="muted">No model usage recorded.</p>
+      {{end}}
+    </div>
+
+    <div class="panel">
+      <h2>Top projects by tokens</h2>
+      {{if .Projects}}
+      <div class="hbars">
+        {{range .Projects}}
+        <div class="hbar-row">
+          <div class="hbar-label" title="{{.Name}}">{{.Name}}</div>
+          <div class="hbar-track"><div class="hbar-fill" style="width:{{.WidthPct}}%"></div></div>
+          <div class="hbar-val">{{.Tokens}}</div>
+        </div>
+        {{end}}
+      </div>
+      {{else}}
+      <p class="muted">No project usage recorded.</p>
+      {{end}}
+    </div>
+  </div>
+
+  {{if .Models}}
+  <div class="panel">
+    <h2>Cost by model</h2>
+    <table>
+      <tr><th>Model</th><th>Turns</th><th>Input</th><th>Output</th><th>Cache read</th><th>Cache creation</th><th>Est. cost</th></tr>
+      {{range .Models}}
+      <tr>
+        <td><span class="chip" style="border-color:{{.Color}}">{{.Model}}</span></td>
+        <td>{{.Turns}}</td>
+        <td>{{.Input}}</td>
+        <td>{{.Output}}</td>
+        <td>{{.CacheRead}}</td>
+        <td>{{.CacheCreate}}</td>
+        <td class="cost">{{.Cost}}</td>
+      </tr>
+      {{end}}
+    </table>
+  </div>
+  {{end}}
+
+  <div class="panel">
+    <h2>Recent sessions</h2>
+    <table>
+      <tr><th>Session</th><th>Project</th><th>Title</th><th>Started</th><th>Model</th><th>Turns</th><th>Input</th><th>Output</th><th>Est. cost</th></tr>
+      {{range .Recent}}
+      <tr>
+        <td><a href="/sessions/{{.ID}}">{{.Short}}</a></td>
+        <td>{{.Project}}</td>
+        <td>{{if .Title}}{{.Title}}{{else}}<span class="muted">—</span>{{end}}</td>
+        <td class="muted">{{.Started}}</td>
+        <td>{{if .Model}}<span class="chip">{{.Model}}</span>{{end}}</td>
+        <td>{{.Turns}}</td>
+        <td>{{.Input}}</td>
+        <td>{{.Output}}</td>
+        <td class="cost">{{.Cost}}</td>
+      </tr>
+      {{end}}
+    </table>
+  </div>
+</body>
+</html>
+{{end}}

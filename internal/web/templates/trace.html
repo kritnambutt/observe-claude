@@ -1,0 +1,152 @@
+{{define "trace.html"}}
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{.Session.SessionID}} — observability-code</title>
+  {{template "style"}}
+</head>
+<body>
+  <a class="back" href="/sessions">&larr; sessions</a>
+  <h1>{{.Session.SessionID}}</h1>
+  <div class="subtitle">
+    {{.Session.Cwd}} &middot; started {{.Session.StartedAt.Format "2006-01-02 15:04:05"}}
+    &middot; duration {{.Duration}} &middot; {{.Session.SpanCount}} spans
+    &middot; {{len .Turns}} turns
+    {{if .Session.EndReason}}&middot; ended: {{.Session.EndReason}}{{end}}
+  </div>
+
+  {{if .Rules}}
+  <details class="context">
+    <summary>{{len .Rules}} instruction / rule files loaded</summary>
+    <div class="chips">
+      {{range .Rules}}<span class="chip" title="{{.Memory}}">{{.Path}}</span>{{end}}
+    </div>
+  </details>
+  {{end}}
+
+  {{if .Turns}}
+  <h2>Turns</h2>
+  <div class="turns-acc">
+    <div class="acc-head">
+      <span>#</span><span>Prompt</span><span>Model</span><span>Took</span><span>Tokens</span><span>Tools</span><span>Agents</span><span>Status</span>
+    </div>
+    {{range .Turns}}
+    <details class="turn-acc" name="turns" id="turn-{{.Index}}"{{if not $.MultiTurn}} open{{end}}>
+      <summary class="acc-row">
+        <span class="ac-idx">#{{.Index}}</span>
+        <span class="ac-prompt">{{if .Prompt}}{{.Prompt}}{{else}}<span class="muted">(no prompt text)</span>{{end}}</span>
+        <span>{{if .Model}}<span class="chip">{{.Model}}</span>{{end}}</span>
+        <span>{{.Duration}}</span>
+        <span>{{.InputTokens}} / {{.OutputTokens}}</span>
+        <span>{{.ToolCalls}}</span>
+        <span>{{if .SpawnedAgents}}{{len .Agents}}{{else}}<span class="muted">—</span>{{end}}</span>
+        <span>{{if eq .Status "error"}}<span class="status-error">error</span>{{else}}ok{{end}}</span>
+      </summary>
+    <div class="turn-body">
+    <div class="io">
+      <div class="io-k in">prompt</div>
+      <div class="io-v">{{if .Prompt}}{{.Prompt}}{{else}}<span class="muted">(no prompt text)</span>{{end}}</div>
+    </div>
+    <div class="turn-stats">
+      {{if .Model}}<span class="stat"><span class="stat-k">model</span> {{.Model}}</span>{{end}}
+      {{if .Duration}}<span class="stat"><span class="stat-k">took</span> {{.Duration}}</span>{{end}}
+      <span class="stat"><span class="stat-k">started</span> {{.Started}}</span>
+      {{if .StopReason}}<span class="stat"><span class="stat-k">stop</span> {{.StopReason}}</span>{{end}}
+      {{if or .InputTokens .OutputTokens}}<span class="stat"><span class="stat-k">tokens</span> {{.InputTokens}} in / {{.OutputTokens}} out{{if .CacheRead}} &middot; {{.CacheRead}} cached{{end}}</span>{{end}}
+      <span class="stat"><span class="stat-k">tool calls</span> {{.ToolCalls}}</span>
+      <span class="stat"><span class="stat-k">agents</span> {{if .SpawnedAgents}}{{len .Agents}}{{else}}none{{end}}</span>
+      {{if .Compactions}}<span class="stat"><span class="stat-k">compactions</span> {{.Compactions}}</span>{{end}}
+    </div>
+    {{if .Tools}}
+    <div class="turn-line"><span class="line-k">tools</span>
+      {{range .Tools}}<span class="chip kind-tool{{if .Failed}} err{{end}}">{{.Name}}{{if gt .Count 1}} &times;{{.Count}}{{end}} <span class="muted">{{.Duration}}</span></span>{{end}}
+    </div>
+    {{end}}
+    {{if .Agents}}
+    <div class="turn-line"><span class="line-k">agents</span>
+      {{range .Agents}}<span class="chip kind-agent">{{.}}</span>{{end}}
+    </div>
+    {{end}}
+    {{if .Skills}}
+    <div class="turn-line"><span class="line-k">skills</span>
+      {{range .Skills}}<span class="chip kind-prompt">{{.}}</span>{{end}}
+    </div>
+    {{end}}
+    {{if .Files}}
+    <div class="turn-line"><span class="line-k">files</span>
+      {{range .Files}}<span class="chip">{{.}}</span>{{end}}
+    </div>
+    {{end}}
+    {{if .Events}}
+    <div class="turn-line"><span class="line-k">events</span>
+      {{range .Events}}<span class="chip kind-event">{{.Name}}{{if gt .Count 1}} &times;{{.Count}}{{end}}</span>{{end}}
+    </div>
+    {{end}}
+    {{if .Output}}
+    <div class="io">
+      <div class="io-k out">output</div>
+      <div class="io-v">{{.Output}}</div>
+    </div>
+    {{end}}
+    {{if .Spans}}
+    <details class="turn-flow" open>
+      <summary>{{len .Spans}} steps &middot; waterfall</summary>
+      {{template "spanrows" .Spans}}
+    </details>
+    {{else}}
+    <div class="muted turn-empty">No tool calls recorded (turn still open, or a pure text reply).</div>
+    {{end}}
+    </div>
+    </details>
+    {{end}}
+  </div>
+  {{else}}
+  <p class="muted">No turns recorded for this session yet.</p>
+  {{end}}
+
+  {{if .Orphans}}
+  <details class="context">
+    <summary>Session-level events ({{len .Orphans}}) — startup &amp; between-turn activity</summary>
+    <div class="orphan-flow">{{template "spanrows" .Orphans}}</div>
+  </details>
+  {{end}}
+</body>
+</html>
+{{end}}
+
+{{define "spanrows"}}
+{{range .}}
+<div class="span-row" id="span-{{.ID}}" style="padding-left: {{.Depth}}0px">
+  <div class="span-label">
+    <span class="kbadge kind-{{.Kind}}{{if eq .Status "error"}} status-error{{end}}">{{.Kind}}</span>
+    <span class="span-name">{{.Name}}</span>
+    {{if .Detail}}<span class="span-detail muted">{{.Detail}}</span>{{end}}
+    {{if or .Added .Removed}}<span class="diffstat">{{if .Added}}<span class="add">+{{.Added}}</span>{{end}}{{if .Removed}}<span class="del">&minus;{{.Removed}}</span>{{end}}</span>{{end}}
+  </div>
+  <div class="span-track">
+    <div class="span-bar kind-{{.Kind}} {{if eq .Status "error"}}status-error{{end}}"
+         style="left: {{.OffsetPct}}%; width: {{.WidthPct}}%;" title="{{.DurationMs}}ms"></div>
+  </div>
+  <div class="span-meta">{{.DurationMs}}ms</div>
+</div>
+{{if .Diff}}
+<details class="diff" style="margin-left: {{.Depth}}0px">
+  <summary>diff &middot; <span class="add">+{{.Added}}</span> <span class="del">&minus;{{.Removed}}</span></summary>
+  <div class="diffbody">
+    {{range .Diff}}<div class="hunk-head">{{.Header}}</div>{{range .Lines}}<div class="dl{{if eq .Sign "+"}} add{{else if eq .Sign "-"}} del{{end}}">{{.Sign}}{{.Text}}</div>{{end}}{{end}}
+  </div>
+</details>
+{{end}}
+{{if .Attrs}}
+<details class="attrs" style="margin-left: {{.Depth}}0px">
+  <summary>{{len .Attrs}} attributes &middot; started {{.StartedAt}}</summary>
+  <table>
+    {{range .Attrs}}
+    <tr><td class="k">{{.Key}}</td><td class="v">{{.Value}}</td></tr>
+    {{end}}
+  </table>
+</details>
+{{end}}
+{{end}}
+{{end}}

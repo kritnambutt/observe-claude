@@ -1,0 +1,28 @@
+# Build output & local data
+/bin/
+/data/
+
+# SQLite database (created at runtime by hook + server)
+*.db
+*.db-wal
+*.db-shm
+
+# install-hooks.sh settings.json backups
+*.bak-*
+
+# Go test/coverage/profile artifacts
+*.test
+*.out
+coverage.*
+
+# Claude Code local, machine-specific overrides (project config in
+# .claude/ is checked in; per-user settings are not)
+.claude/settings.local.json
+
+# macOS
+.DS_Store
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp

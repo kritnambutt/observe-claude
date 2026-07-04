@@ -1,0 +1,39 @@
+{{define "sessions.html"}}
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>observability-code</title>
+  {{template "style"}}
+</head>
+<body>
+  <a class="back" href="/">&larr; usage overview</a>
+  <h1>Claude Code sessions</h1>
+  <div class="subtitle">{{len .Sessions}} sessions &middot; refreshed {{.Now}}</div>
+
+  {{if .Sessions}}
+  <table>
+    <thead>
+      <tr>
+        <th>Session</th><th>Started</th><th>Duration</th><th>Spans</th><th>Cwd</th><th>Ended</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range .Sessions}}
+      <tr>
+        <td><a href="/sessions/{{.ID}}">{{.ID}}</a></td>
+        <td title="{{.Started}}">{{.StartedAgo}}</td>
+        <td>{{if .Live}}<span class="badge live">live</span>{{else}}{{.Duration}}{{end}}</td>
+        <td>{{.SpanCount}}</td>
+        <td class="muted">{{.Cwd}}</td>
+        <td class="muted">{{.EndReason}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="muted">No sessions recorded yet. Install the hooks (see scripts/install-hooks.sh) and start a Claude Code session.</p>
+  {{end}}
+</body>
+</html>
+{{end}}

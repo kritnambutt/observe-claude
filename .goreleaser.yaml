@@ -39,6 +39,15 @@ homebrew_casks:
       name: homebrew-tap
     homepage: "https://github.com/kritnambutt/observe-claude"
     description: "Local observability for Claude Code sessions"
+    # The binary is unsigned, so macOS quarantines it and silently blocks the
+    # first run. Strip the quarantine attribute on install so `brew install`
+    # just works. (Proper code signing can replace this later.)
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/observe-claude"]
+          end
 
 # Windows — `scoop bucket add observe kritnambutt/scoop-bucket; scoop install observe-claude`.
 # Requires a repo named `scoop-bucket` under the same owner (create it empty).
@@ -56,7 +65,9 @@ release:
     name: observe-claude
 
 changelog:
-  use: github
+  # Use local git history rather than GitHub's compare API, so releases can be
+  # cut locally without the new tag having been pushed first.
+  use: git
   sort: asc
   filters:
     exclude:
